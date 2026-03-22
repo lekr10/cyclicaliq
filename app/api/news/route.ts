@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const industry_id = request.nextUrl.searchParams.get('industry_id')
-  const days = parseInt(request.nextUrl.searchParams.get('days') ?? '30')
 
   if (!industry_id) {
     return NextResponse.json({ error: 'industry_id required' }, { status: 400 })
@@ -54,12 +53,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ articles: stale ?? [], source: 'stale' })
   }
 
-  const fromDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0]
   const keywords = industry.news_keywords ?? industry.name
-  const url = new URL('https://newsapi.org/v2/everything')
+  // /v2/top-headlines is supported on the free NewsAPI developer plan
+  // /v2/everything requires a paid plan (returns 426)
+  const url = new URL('https://newsapi.org/v2/top-headlines')
   url.searchParams.set('q', keywords)
-  url.searchParams.set('from', fromDate)
-  url.searchParams.set('sortBy', 'publishedAt')
   url.searchParams.set('pageSize', '50')
   url.searchParams.set('language', 'en')
   url.searchParams.set('apiKey', apiKey)
