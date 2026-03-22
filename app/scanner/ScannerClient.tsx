@@ -101,8 +101,22 @@ export default function ScannerClient({ industries }: ScannerClientProps) {
     return Math.floor((Date.now() - new Date(industry.last_fetched_at).getTime()) / 86400000)
   }
 
+  const hasPainData = industries.some(i => i.current_pain_index !== null)
+
   return (
     <>
+      {!hasPainData && (
+        <div className="mb-4 flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <span>Pain Index data not yet loaded.</span>
+          <button
+            onClick={handleFirstRun}
+            disabled={firstRunLoading}
+            className="px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
+          >
+            {firstRunLoading ? 'Starting…' : 'Run First Refresh ►'}
+          </button>
+        </div>
+      )}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm" aria-label="Most Distressed Industries by Pain Index">
           <caption className="sr-only">
