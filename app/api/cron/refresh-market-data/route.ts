@@ -121,10 +121,10 @@ async function refreshMacroData(serviceSupabase: any) {
   const yieldCurve = (yield10yr !== null && yield2yr !== null) ? yield10yr - yield2yr : null
 
   // ON CONFLICT DO NOTHING — preserve daily history
-  await serviceSupabase.from('macro_snapshots').insert({
+  await serviceSupabase.from('macro_snapshots').upsert({
     ...results,
     yield_curve_spread: yieldCurve,
     snapshot_date: today,
     fetched_at: new Date().toISOString(),
-  }).onConflict('snapshot_date').ignore()
+  }, { onConflict: 'snapshot_date', ignoreDuplicates: true })
 }

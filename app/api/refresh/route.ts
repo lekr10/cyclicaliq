@@ -101,7 +101,7 @@ export async function refreshIndustry(
       returns.push({ return1yr: return1yr ? return1yr * 100 : null, return3yr: null })
 
       // Insert snapshot — ON CONFLICT DO NOTHING to preserve history
-      await serviceSupabase.from('market_snapshots').insert({
+      await serviceSupabase.from('market_snapshots').upsert({
         ticker_or_sector: ticker,
         return_1yr: return1yr ? return1yr * 100 : null,
         return_3yr: null,
@@ -112,7 +112,7 @@ export async function refreshIndustry(
         peak_price_5yr_computed_at: peakPrice5yr ? new Date().toISOString() : null,
         snapshot_date: today,
         last_fetched_at: new Date().toISOString(),
-      }).onConflict('ticker_or_sector,snapshot_date').ignore()
+      }, { onConflict: 'ticker_or_sector,snapshot_date', ignoreDuplicates: true })
 
       // 300ms delay between tickers (yahoo-finance2 unofficial)
       await new Promise(r => setTimeout(r, 300))
@@ -142,7 +142,7 @@ export async function refreshIndustry(
     : null
 
   // Insert industry-level snapshot — ON CONFLICT DO NOTHING
-  await serviceSupabase.from('market_snapshots').insert({
+  await serviceSupabase.from('market_snapshots').upsert({
     ticker_or_sector: industry.name,
     return_1yr: avgReturn1yr,
     return_3yr: null,
@@ -151,7 +151,7 @@ export async function refreshIndustry(
     pain_index: painResult.painIndex,
     snapshot_date: today,
     last_fetched_at: new Date().toISOString(),
-  }).onConflict('ticker_or_sector,snapshot_date').ignore()
+  }, { onConflict: 'ticker_or_sector,snapshot_date', ignoreDuplicates: true })
 
   // Update denormalized columns on industries table
   await serviceSupabase
