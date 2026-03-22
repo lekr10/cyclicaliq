@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
   const keywords = industry.news_keywords ?? industry.name
   const url = new URL('https://newsapi.org/v2/everything')
   url.searchParams.set('q', keywords)
-  url.searchParams.set('sources', 'reuters,the-financial-times,bloomberg,associated-press,the-wall-street-journal')
   url.searchParams.set('from', fromDate)
   url.searchParams.set('sortBy', 'publishedAt')
   url.searchParams.set('pageSize', '50')
