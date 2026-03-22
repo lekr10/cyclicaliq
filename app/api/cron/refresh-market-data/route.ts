@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { verifyCronSecret } from '@/lib/cron-auth'
 import { refreshIndustry } from '@/app/api/refresh/route'
 
@@ -11,7 +12,17 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const cronToken = authHeader?.replace('Bearer ', '') ?? secret
 
+  // Allow authenticated Supabase users to trigger manually (e.g. cold-start button)
+  let authorizedBySession = false
   if (!verifyCronSecret(cronToken)) {
+    try {
+      const supabase = await createServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      authorizedBySession = !!user
+    } catch { /* ignore */ }
+  }
+
+  if (!verifyCronSecret(cronToken) && !authorizedBySession) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
