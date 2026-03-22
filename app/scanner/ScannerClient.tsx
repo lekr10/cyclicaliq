@@ -77,18 +77,21 @@ export default function ScannerClient({ industries }: ScannerClientProps) {
 
   if (!hasData) {
     return (
-      <EmptyState
-        message="Awaiting first data refresh — check back after the nightly run at 6pm ET, or run the first refresh manually."
-        action={
-          <button
-            onClick={handleFirstRun}
-            disabled={firstRunLoading}
-            className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
-          >
-            {firstRunLoading ? 'Starting…' : 'Run First Refresh ▶'}
-          </button>
-        }
-      />
+      <>
+        <EmptyState
+          message="Awaiting first data refresh — check back after the nightly run at 6pm ET, or run the first refresh manually."
+          action={
+            <button
+              onClick={handleFirstRun}
+              disabled={firstRunLoading}
+              className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
+            >
+              {firstRunLoading ? 'Starting…' : 'Run First Refresh ▶'}
+            </button>
+          }
+        />
+        {toast && <Toast message={toast.message} type={toast.type} onDismiss={dismissToast} />}
+      </>
     )
   }
 
