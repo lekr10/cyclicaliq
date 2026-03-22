@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const industry_id = request.nextUrl.searchParams.get('industry_id')
+  const days = parseInt(request.nextUrl.searchParams.get('days') ?? '30')
 
   if (!industry_id) {
     return NextResponse.json({ error: 'industry_id required' }, { status: 400 })
@@ -40,10 +41,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ articles: cached, source: 'cache' })
   }
 
-  // Fetch fresh from NewsAPI
-  const apiKey = process.env.NEWS_API_KEY
+  // Fetch fresh from GNews API
+  // GNews free tier supports keyword search with date filtering (unlike NewsAPI free which is top-headlines only)
+  const apiKey = process.env.GNEWS_API_KEY
   if (!apiKey) {
-    // Return stale cached articles if API key missing
     const { data: stale } = await supabase
       .from('news_articles')
       .select('*')
@@ -53,20 +54,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ articles: stale ?? [], source: 'stale' })
   }
 
+  const fromDate = new Date(Date.now() - days * 86400000).toISOString()
   const keywords = industry.news_keywords ?? industry.name
-  // /v2/top-headlines is supported on the free NewsAPI developer plan
-  // /v2/everything requires a paid plan (returns 426)
-  const url = new URL('https://newsapi.org/v2/top-headlines')
+  const url = new URL('https://gnews.io/api/v4/search')
   url.searchParams.set('q', keywords)
-  url.searchParams.set('pageSize', '50')
-  url.searchParams.set('language', 'en')
-  url.searchParams.set('apiKey', apiKey)
+  url.searchParams.set('lang', 'en')
+  url.searchParams.set('max', '50')
+  url.searchParams.set('from', fromDate)
+  url.searchParams.set('sortby', 'publishedAt')
+  url.searchParams.set('token', apiKey)
 
   const newsRes = await fetch(url.toString(), { next: { revalidate: 0 } })
 
   if (newsRes.status === 429) {
-    console.error(`[news] NewsAPI rate limited for industry ${industry.name}`)
-    // Daily limit hit — return last cached articles
+    console.error(`[news] GNews rate limited for industry ${industry.name}`)
     const { data: stale } = await supabase
       .from('news_articles')
       .select('*')
@@ -80,45 +81,44 @@ export async function GET(request: NextRequest) {
   }
 
   if (!newsRes.ok) {
-    console.error(`[news] NewsAPI HTTP ${newsRes.status} for industry ${industry.name}`)
+    console.error(`[news] GNews HTTP ${newsRes.status} for industry ${industry.name}`)
     const { data: stale } = await supabase
       .from('news_articles')
       .select('*')
       .eq('industry_id', industry_id)
       .order('published_at', { ascending: false })
       .limit(50)
-    return NextResponse.json({ articles: stale ?? [], source: 'stale', error: 'NewsAPI error' })
+    return NextResponse.json({ articles: stale ?? [], source: 'stale', error: 'GNews error' })
   }
 
   const newsData = await newsRes.json()
-  if (newsData.status === 'error') {
-    console.error(`[news] NewsAPI error for industry ${industry.name}: ${newsData.code} — ${newsData.message}`)
+  if (newsData.errors) {
+    console.error(`[news] GNews error for industry ${industry.name}:`, newsData.errors)
   } else {
-    console.log(`[news] NewsAPI OK for industry ${industry.name}: totalResults=${newsData.totalResults}, articles=${newsData.articles?.length ?? 0}`)
+    console.log(`[news] GNews OK for industry ${industry.name}: totalArticles=${newsData.totalArticles}, articles=${newsData.articles?.length ?? 0}`)
   }
-  const articles = newsData.articles ?? []
+
+  // GNews response shape: { totalArticles, articles: [{ title, description, content, url, publishedAt, source: { name, url } }] }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const articles = (newsData.articles ?? []).map((a: any) => ({
+    industry_id,
+    title: a.title,
+    url: a.url,
+    source: a.source?.name ?? null,
+    published_at: a.publishedAt ?? null,
+    description: a.description ?? null,
+    fetched_at: new Date().toISOString(),
+  }))
 
   if (articles.length > 0) {
-    // Write to cache using service role (upsert with ON CONFLICT DO NOTHING via unique URL)
     const serviceSupabase = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toInsert = articles.map((a: any) => ({
-      industry_id,
-      title: a.title,
-      url: a.url,
-      source: a.source?.name ?? null,
-      published_at: a.publishedAt ?? null,
-      description: a.description ?? null,
-      fetched_at: new Date().toISOString(),
-    }))
-
     await serviceSupabase
       .from('news_articles')
-      .upsert(toInsert, { onConflict: 'url', ignoreDuplicates: true })
+      .upsert(articles, { onConflict: 'url', ignoreDuplicates: true })
 
     // Clean up articles older than 90 days
     const cutoff = new Date(Date.now() - 90 * 86400000).toISOString()
