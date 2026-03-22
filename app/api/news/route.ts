@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
   const newsRes = await fetch(url.toString(), { next: { revalidate: 0 } })
 
   if (newsRes.status === 429) {
+    console.error(`[news] NewsAPI rate limited for industry ${industry.name}`)
     // Daily limit hit — return last cached articles
     const { data: stale } = await supabase
       .from('news_articles')
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!newsRes.ok) {
+    console.error(`[news] NewsAPI HTTP ${newsRes.status} for industry ${industry.name}`)
     const { data: stale } = await supabase
       .from('news_articles')
       .select('*')
@@ -91,6 +93,11 @@ export async function GET(request: NextRequest) {
   }
 
   const newsData = await newsRes.json()
+  if (newsData.status === 'error') {
+    console.error(`[news] NewsAPI error for industry ${industry.name}: ${newsData.code} — ${newsData.message}`)
+  } else {
+    console.log(`[news] NewsAPI OK for industry ${industry.name}: totalResults=${newsData.totalResults}, articles=${newsData.articles?.length ?? 0}`)
+  }
   const articles = newsData.articles ?? []
 
   if (articles.length > 0) {
@@ -125,12 +132,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Return fresh articles from DB (consistent format)
-  const { data: fresh } = await supabase
+  const { data: fresh, error: freshError } = await supabase
     .from('news_articles')
     .select('*')
     .eq('industry_id', industry_id)
     .order('published_at', { ascending: false })
     .limit(50)
+
+  if (freshError) console.error(`[news] DB read error for industry ${industry.name}:`, freshError.message)
+  console.log(`[news] Returning ${fresh?.length ?? 0} articles for industry ${industry.name}`)
 
   return NextResponse.json({ articles: fresh ?? [], source: 'fresh' })
 }
