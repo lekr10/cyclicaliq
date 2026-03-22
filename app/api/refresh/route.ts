@@ -85,9 +85,9 @@ export async function refreshIndustry(
         }
       }
 
-      const currentPrice = quote.regularMarketPrice ?? null
-      const shortInterest = (quote as Record<string, unknown>).shortPercentOfFloat as number | null
-      const analyst = (quote as Record<string, unknown>).recommendationMean as number | null
+      const currentPrice = (quote?.regularMarketPrice as number | undefined) ?? null
+      const shortInterest = (quote?.shortPercentOfFloat as number | undefined) ?? null
+      const analyst = (quote?.recommendationMean as number | undefined) ?? null
 
       tickerData.push({
         ticker,
@@ -98,7 +98,7 @@ export async function refreshIndustry(
       })
 
       // Compute 1yr and 3yr returns
-      const return1yr = (quote as Record<string, unknown>).fiftyTwoWeekChangePercent as number | null
+      const return1yr = (quote?.fiftyTwoWeekChangePercent as number | undefined) ?? null
       returns.push({ return1yr: return1yr ? return1yr * 100 : null, return3yr: null })
 
       // Insert snapshot — ON CONFLICT DO NOTHING to preserve history
