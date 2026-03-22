@@ -202,6 +202,8 @@ export default function IndustryDetailClient({ industry, cachedArticles, newsCac
               <h2 className="text-sm font-semibold text-slate-900">Recent Coverage</h2>
               <div className="flex items-center gap-3">
                 <select
+                  id="news-time-window"
+                  name="newsTimeWindow"
                   value={timeWindow}
                   onChange={e => setTimeWindow(e.target.value as typeof timeWindow)}
                   className="text-xs border border-slate-200 rounded px-2 py-1 text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-900"
