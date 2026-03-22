@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import yahooFinance from 'yahoo-finance2'
+import YahooFinanceClass from 'yahoo-finance2'
+const yahooFinance = new (YahooFinanceClass as unknown as new () => typeof YahooFinanceClass)()
 import { aggregateTickersForIndustry, type TickerData } from '@/lib/pain-index'
 
 // On-demand single-industry refresh
