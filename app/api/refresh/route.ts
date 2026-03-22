@@ -99,12 +99,12 @@ export async function refreshIndustry(
 
       // Compute 1yr and 3yr returns
       const return1yr = (quote?.fiftyTwoWeekChangePercent as number | undefined) ?? null
-      returns.push({ return1yr: return1yr ? return1yr * 100 : null, return3yr: null })
+      returns.push({ return1yr, return3yr: null })
 
       // Insert snapshot — ON CONFLICT DO NOTHING to preserve history
       await serviceSupabase.from('market_snapshots').upsert({
         ticker_or_sector: ticker,
-        return_1yr: return1yr ? return1yr * 100 : null,
+        return_1yr: return1yr,
         return_3yr: null,
         short_interest: shortInterest,
         analyst_consensus: analyst,
