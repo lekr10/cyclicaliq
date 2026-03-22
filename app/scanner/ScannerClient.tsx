@@ -38,7 +38,7 @@ export default function ScannerClient({ industries }: ScannerClientProps) {
   const [firstRunLoading, setFirstRunLoading] = useState(false)
   const { toast, showToast, dismissToast } = useToast()
 
-  const hasData = industries.some(i => i.current_pain_index !== null)
+  const hasData = industries.length > 0
 
   async function handleRefresh(industry: Industry) {
     setRefreshingId(industry.id)
