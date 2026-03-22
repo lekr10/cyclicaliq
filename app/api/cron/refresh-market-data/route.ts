@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { verifyCronSecret } from '@/lib/cron-auth'
@@ -41,14 +41,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to load industries' }, { status: 500 })
   }
 
-  // Also refresh FRED macro data
-  await refreshMacroData(serviceSupabase)
-
-  // Fire-and-forget the full batch (runs async, cron handler returns immediately)
-  // The actual processing happens in the background
-  processAllIndustries(industries, serviceSupabase).catch(e =>
-    console.error('Nightly refresh error:', e)
-  )
+  // Use after() to keep processing alive after response is sent
+  after(async () => {
+    await refreshMacroData(serviceSupabase)
+    await processAllIndustries(industries, serviceSupabase).catch(e =>
+      console.error('Nightly refresh error:', e)
+    )
+  })
 
   return NextResponse.json({
     ok: true,
